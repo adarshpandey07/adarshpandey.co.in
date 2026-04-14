@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adarsh Command Center</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Background Effects -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-glow bg-glow-3"></div>
+
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">ADARSH<br><small>Command Center</small></span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">OVERVIEW</div>
+      <a href="#" class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">🏠</span>
+        <span>Dashboard</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">MAKE MONEY</div>
+      <a href="#" class="nav-item" data-page="etsy">
+        <span class="nav-icon">🛒</span>
+        <span>Etsy Templates</span>
+        <span class="nav-badge live">LIVE</span>
+      </a>
+      <a href="#" class="nav-item" data-page="polymarket">
+        <span class="nav-icon">📈</span>
+        <span>Polymarket Bot</span>
+        <span class="nav-badge building">BUILD</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">OPERATIONS</div>
+      <a href="#" class="nav-item" data-page="health">
+        <span class="nav-icon">🖥️</span>
+        <span>Server Health</span>
+        <span class="status-dot green"></span>
+      </a>
+      <a href="#" class="nav-item" data-page="kanban">
+        <span class="nav-icon">📋</span>
+        <span>AI Kanban</span>
+        <span class="nav-badge auto">24/7</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">PROJECTS</div>
+      <a href="#" class="nav-item" data-page="projects">
+        <span class="nav-icon">📦</span>
+        <span>All Projects</span>
+        <span class="nav-count">19</span>
+      </a>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="server-status">
+        <span class="status-dot green pulse"></span>
+        <span>All systems operational</span>
+      </div>
+      <div class="last-updated" id="lastUpdated"></div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <button class="menu-toggle" id="menuToggle">☰</button>
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-actions">
+        <div class="live-clock" id="liveClock"></div>
+        <div class="topbar-avatar">AP</div>
+      </div>
+    </header>
+
+    <!-- Page: Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <!-- Revenue Hero -->
+      <div class="hero-stats">
+        <div class="stat-card revenue">
+          <div class="stat-icon">💰</div>
+          <div class="stat-info">
+            <div class="stat-label">Monthly Revenue Goal</div>
+            <div class="stat-value">₹50,000</div>
+            <div class="stat-sub">~$600/month target</div>
+          </div>
+          <div class="stat-trend up">🎯 Active</div>
+        </div>
+        <div class="stat-card projects">
+          <div class="stat-icon">📦</div>
+          <div class="stat-info">
+            <div class="stat-label">Active Projects</div>
+            <div class="stat-value">2</div>
+            <div class="stat-sub">Etsy + Polymarket</div>
+          </div>
+          <div class="stat-trend up">↑ Growing</div>
+        </div>
+        <div class="stat-card servers">
+          <div class="stat-icon">🖥️</div>
+          <div class="stat-info">
+            <div class="stat-label">Services Online</div>
+            <div class="stat-value" id="servicesOnline">19</div>
+            <div class="stat-sub">Supabase + AWS</div>
+          </div>
+          <div class="stat-trend neutral">✅ Healthy</div>
+        </div>
+        <div class="stat-card tasks">
+          <div class="stat-icon">🤖</div>
+          <div class="stat-info">
+            <div class="stat-label">AI Tasks Running</div>
+            <div class="stat-value" id="aiTasksCount">0</div>
+            <div class="stat-sub">Autonomous 24/7</div>
+          </div>
+          <div class="stat-trend auto">⚡ Auto</div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="section">
+        <div class="section-header">
+          <h2>Quick Actions</h2>
+        </div>
+        <div class="quick-actions">
+          <button class="action-btn" onclick="navigateTo('etsy')">
+            <span class="action-icon">🛒</span>
+            <span class="action-label">Etsy Dashboard</span>
+          </button>
+          <button class="action-btn" onclick="navigateTo('polymarket')">
+            <span class="action-icon">📈</span>
+            <span class="action-label">Polymarket Bot</span>
+          </button>
+          <button class="action-btn" onclick="navigateTo('health')">
+            <span class="action-icon">🖥️</span>
+            <span class="action-label">Server Health</span>
+          </button>
+          <button class="action-btn" onclick="navigateTo('kanban')">
+            <span class="action-icon">📋</span>
+            <span class="action-label">AI Kanban</span>
+          </button>
+          <button class="action-btn" onclick="navigateTo('projects')">
+            <span class="action-icon">📦</span>
+            <span class="action-label">All Projects</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Money Making Overview -->
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-header">
+            <h2>💰 Make Adarsh Money</h2>
+            <span class="badge">2 streams</span>
+          </div>
+          <div class="money-cards">
+            <div class="money-card etsy" onclick="navigateTo('etsy')">
+              <div class="money-card-header">
+                <h3>🛒 Etsy Digital Products</h3>
+                <span class="status-pill active">Active</span>
+              </div>
+              <div class="money-card-stats">
+                <div class="mini-stat">
+                  <span class="mini-label">Templates</span>
+                  <span class="mini-value">5</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-label">Built</span>
+                  <span class="mini-value">2</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-label">Price Avg</span>
+                  <span class="mini-value">$7.19</span>
+                </div>
+              </div>
+              <div class="money-card-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: 40%"></div>
+                </div>
+                <span class="progress-label">2/5 templates built</span>
+              </div>
+            </div>
+
+            <div class="money-card polymarket" onclick="navigateTo('polymarket')">
+              <div class="money-card-header">
+                <h3>📈 Polymarket Trading</h3>
+                <span class="status-pill building">Setup</span>
+              </div>
+              <div class="money-card-stats">
+                <div class="mini-stat">
+                  <span class="mini-label">Strategy</span>
+                  <span class="mini-value">Auto</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-label">Status</span>
+                  <span class="mini-value">Config</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-label">Mode</span>
+                  <span class="mini-value">24/7</span>
+                </div>
+              </div>
+              <div class="money-card-progress">
+                <div class="progress-bar">
+                  <div class="progress-fill building" style="width: 10%"></div>
+                </div>
+                <span class="progress-label">Setting up trading bot...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="section">
+          <div class="section-header">
+            <h2>🖥️ System Status</h2>
+            <span class="badge green">All OK</span>
+          </div>
+          <div class="status-list" id="statusList">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="section">
+        <div class="section-header">
+          <h2>📊 Recent Activity</h2>
+        </div>
+        <div class="activity-feed" id="activityFeed">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: Etsy -->
+    <div class="page" id="page-etsy">
+      <div class="page-header">
+        <h1>🛒 Etsy Digital Products</h1>
+        <p>Google Sheets template pipeline — Target: ₹50,000/month</p>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <div class="stat-label">Templates</div>
+            <div class="stat-value">5</div>
+            <div class="stat-sub">2 built, 3 planned</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💵</div>
+          <div class="stat-info">
+            <div class="stat-label">Avg Price</div>
+            <div class="stat-value">$7.19</div>
+            <div class="stat-sub">Net ~$5.75 after fees</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-info">
+            <div class="stat-label">Sales Needed</div>
+            <div class="stat-value">~94/mo</div>
+            <div class="stat-sub">~3.1 per day</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📈</div>
+          <div class="stat-info">
+            <div class="stat-label">Revenue</div>
+            <div class="stat-value">$0</div>
+            <div class="stat-sub">Just getting started</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>Template Catalog</h2>
+          <button class="btn-primary" onclick="window.open('https://etsy.com','_blank')">Open Etsy Store →</button>
+        </div>
+        <div class="template-grid" id="templateGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="section">
+          <div class="section-header"><h2>Pipeline Commands</h2></div>
+          <div class="command-list">
+            <div class="command-item">
+              <code>npm run catalog</code>
+              <span>View template catalog</span>
+            </div>
+            <div class="command-item">
+              <code>npm run build:debt</code>
+              <span>Build Debt Payoff Tracker</span>
+            </div>
+            <div class="command-item">
+              <code>npm run build:savings</code>
+              <span>Build Savings Goal Tracker</span>
+            </div>
+            <div class="command-item">
+              <code>npm run build:subs</code>
+              <span>Build Subscription Tracker</span>
+            </div>
+            <div class="command-item">
+              <code>npm run mockups</code>
+              <span>Generate all listing mockups</span>
+            </div>
+            <div class="command-item">
+              <code>npm run research</code>
+              <span>Run niche research</span>
+            </div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-header"><h2>Revenue Projections</h2></div>
+          <div class="projection-table">
+            <div class="projection-row header">
+              <span>Month</span><span>Templates</span><span>Sales</span><span>Revenue</span>
+            </div>
+            <div class="projection-row"><span>Month 1</span><span>10</span><span>20</span><span>$120</span></div>
+            <div class="projection-row"><span>Month 2</span><span>20</span><span>60</span><span>$420</span></div>
+            <div class="projection-row highlight"><span>Month 3</span><span>25</span><span>100</span><span>$640</span></div>
+            <div class="projection-row"><span>Month 4</span><span>30</span><span>150</span><span>$960</span></div>
+            <div class="projection-row"><span>Month 5</span><span>30</span><span>210</span><span>$1,340</span></div>
+            <div class="projection-row goal"><span>Month 6</span><span>30+</span><span>300+</span><span>$1,900+</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: Polymarket -->
+    <div class="page" id="page-polymarket">
+      <div class="page-header">
+        <h1>📈 Polymarket Trading Bot</h1>
+        <p>Automated prediction market trading — 24/7 autonomous</p>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="stat-icon">💰</div>
+          <div class="stat-info">
+            <div class="stat-label">Portfolio Value</div>
+            <div class="stat-value">$0</div>
+            <div class="stat-sub">Fund to start trading</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-info">
+            <div class="stat-label">Active Positions</div>
+            <div class="stat-value">0</div>
+            <div class="stat-sub">Bot not yet deployed</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🎯</div>
+          <div class="stat-info">
+            <div class="stat-label">Win Rate</div>
+            <div class="stat-value">—</div>
+            <div class="stat-sub">No trades yet</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-info">
+            <div class="stat-label">Bot Status</div>
+            <div class="stat-value">OFF</div>
+            <div class="stat-sub">Needs configuration</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>Setup Checklist</h2>
+          <span class="badge building">In Progress</span>
+        </div>
+        <div class="checklist">
+          <label class="check-item"><input type="checkbox"> Create Polymarket account</label>
+          <label class="check-item"><input type="checkbox"> Fund wallet with USDC (Polygon)</label>
+          <label class="check-item"><input type="checkbox"> Generate API key</label>
+          <label class="check-item"><input type="checkbox"> Configure trading strategy</label>
+          <label class="check-item"><input type="checkbox"> Deploy bot to AWS Lambda</label>
+          <label class="check-item"><input type="checkbox"> Set up monitoring alerts</label>
+          <label class="check-item"><input type="checkbox"> Paper trade for 1 week</label>
+          <label class="check-item"><input type="checkbox"> Go live with real capital</label>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><h2>Trading Strategy</h2></div>
+        <div class="strategy-cards">
+          <div class="strategy-card">
+            <h3>🎯 Edge Detection</h3>
+            <p>Find markets where odds are mispriced vs real-world probability. Use news sentiment + polling data to detect edges >5%.</p>
+          </div>
+          <div class="strategy-card">
+            <h3>📊 Kelly Criterion Sizing</h3>
+            <p>Size positions using Kelly formula: bet_size = (edge * odds - 1) / (odds - 1). Never risk >5% on single market.</p>
+          </div>
+          <div class="strategy-card">
+            <h3>⚡ Market Making</h3>
+            <p>Provide liquidity on low-volume markets. Capture bid-ask spread. Auto-rebalance as odds shift.</p>
+          </div>
+          <div class="strategy-card">
+            <h3>🔄 Arbitrage</h3>
+            <p>Detect price discrepancies between YES/NO contracts or across platforms. Risk-free profit extraction.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: Health -->
+    <div class="page" id="page-health">
+      <div class="page-header">
+        <h1>🖥️ Server Health Dashboard</h1>
+        <p>Real-time monitoring for all services and infrastructure</p>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-label">Services Online</div>
+            <div class="stat-value" id="healthOnline">19</div>
+            <div class="stat-sub">All operational</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-info">
+            <div class="stat-label">Warnings</div>
+            <div class="stat-value" id="healthWarnings">0</div>
+            <div class="stat-sub">No issues</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔴</div>
+          <div class="stat-info">
+            <div class="stat-label">Down</div>
+            <div class="stat-value" id="healthDown">0</div>
+            <div class="stat-sub">All clear</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📈</div>
+          <div class="stat-info">
+            <div class="stat-label">Uptime</div>
+            <div class="stat-value">99.9%</div>
+            <div class="stat-sub">Last 30 days</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>Supabase Projects</h2>
+          <button class="btn-secondary" onclick="refreshHealth()">↻ Refresh</button>
+        </div>
+        <div class="health-grid" id="healthGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header">
+          <h2>AWS Services</h2>
+        </div>
+        <div class="health-grid" id="awsHealthGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: Kanban -->
+    <div class="page" id="page-kanban">
+      <div class="page-header">
+        <h1>📋 AI Kanban Board</h1>
+        <p>Self-improving autonomous task engine — runs 24/7, earns money</p>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-card">
+          <div class="stat-icon">📝</div>
+          <div class="stat-info">
+            <div class="stat-label">Backlog</div>
+            <div class="stat-value" id="kanbanBacklog">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-info">
+            <div class="stat-label">In Progress</div>
+            <div class="stat-value" id="kanbanProgress">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <div class="stat-label">Completed</div>
+            <div class="stat-value" id="kanbanDone">0</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🤖</div>
+          <div class="stat-info">
+            <div class="stat-label">Automated</div>
+            <div class="stat-value" id="kanbanAuto">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kanban-board" id="kanbanBoard">
+        <div class="kanban-column" data-status="backlog">
+          <div class="kanban-column-header">
+            <h3>📝 Backlog</h3>
+            <button class="btn-icon" onclick="addTask('backlog')">+</button>
+          </div>
+          <div class="kanban-cards" id="col-backlog"></div>
+        </div>
+        <div class="kanban-column" data-status="in-progress">
+          <div class="kanban-column-header">
+            <h3>⚡ In Progress</h3>
+          </div>
+          <div class="kanban-cards" id="col-in-progress"></div>
+        </div>
+        <div class="kanban-column" data-status="done">
+          <div class="kanban-column-header">
+            <h3>✅ Done</h3>
+          </div>
+          <div class="kanban-cards" id="col-done"></div>
+        </div>
+        <div class="kanban-column auto" data-status="automated">
+          <div class="kanban-column-header">
+            <h3>🤖 Automated (24/7)</h3>
+            <span class="pulse-badge">LIVE</span>
+          </div>
+          <div class="kanban-cards" id="col-automated"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page: Projects -->
+    <div class="page" id="page-projects">
+      <div class="page-header">
+        <h1>📦 All Projects</h1>
+        <p>Complete portfolio of Supabase projects and services</p>
+      </div>
+
+      <div class="projects-grid" id="projectsGrid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

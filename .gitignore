@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (if ever added)
+node_modules/
+package-lock.json
+
+# AWS credentials (never commit)
+.aws/
+*.pem
+
+# Local server
+.python-version
+__pycache__/
