@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#ec4899"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <text x="256" y="200" font-family="Arial, sans-serif" font-size="160" font-weight="900" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">A</text>
+  <text x="256" y="340" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="rgba(255,255,255,0.9)" text-anchor="middle" dominant-baseline="middle">CMD</text>
+  <rect x="140" y="380" width="232" height="4" rx="2" fill="rgba(255,255,255,0.4)"/>
+  <circle cx="186" cy="420" r="8" fill="#22c55e"/>
+  <circle cx="226" cy="420" r="8" fill="#22c55e"/>
+  <circle cx="266" cy="420" r="8" fill="#22c55e"/>
+  <circle cx="306" cy="420" r="8" fill="#f59e0b"/>
+  <circle cx="346" cy="420" r="8" fill="#22c55e"/>
+</svg>

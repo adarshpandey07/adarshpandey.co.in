@@ -7,6 +7,16 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Adarsh CMD">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72.png">
 </head>
 <body>
   <!-- Background Effects -->
@@ -573,5 +583,21 @@
   </main>
 
   <script src="js/app.js"></script>
+  <script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+          .catch(err => console.warn('[PWA] SW registration failed:', err));
+      });
+    }
+
+    // Handle hash-based navigation from PWA shortcuts
+    if (window.location.hash) {
+      const page = window.location.hash.replace('#', '');
+      if (page) setTimeout(() => navigateTo(page), 100);
+    }
+  </script>
 </body>
 </html>
