@@ -552,7 +552,6 @@ async function renderKanbanPage() {
   const status = cachedStatus;
 
   if (!kanban || !kanban.tasks) {
-    // Show offline kanban from localStorage
     renderOfflineKanban();
     return;
   }
@@ -587,15 +586,21 @@ async function renderKanbanPage() {
     col.innerHTML = tasks.map(t => {
       const tagClass = t.category === 'build' || t.category === 'listing' ? 'money'
         : t.category === 'fix' ? 'infra'
-        : 'ai';
+        : t.tag || 'ai';
+      const isUserTask = t.source === 'kanban' || t.source === 'telegram' || t.source === 'telegram-chat';
+      const deleteBtn = (isUserTask && t.taskId)
+        ? `<button class="kanban-delete" onclick="deleteTask(${t.taskId})" title="Delete task">&times;</button>`
+        : '';
 
       return `
-        <div class="kanban-card" draggable="true" data-id="${t.id}">
+        <div class="kanban-card ${isUserTask ? 'user-task' : ''}" draggable="true" data-id="${t.id}" data-task-id="${t.taskId || ''}">
+          ${deleteBtn}
           <div class="kanban-card-title">${t.title}</div>
           <div class="kanban-card-desc">${t.desc || t.details || ''}</div>
           <div class="kanban-card-meta">
             <span class="kanban-tag ${t.tag || tagClass}">${t.tag || t.category || 'task'}</span>
             ${t.priority ? `<span class="kanban-priority ${t.priority}">${t.priority}</span>` : ''}
+            ${isUserTask ? '<span class="kanban-source">assigned</span>' : ''}
           </div>
         </div>
       `;
@@ -608,45 +613,30 @@ async function renderKanbanPage() {
   if (el('kanbanProgress')) el('kanbanProgress').textContent = columns['in-progress'].length;
   if (el('kanbanDone')) el('kanbanDone').textContent = columns.done.length;
   if (el('kanbanAuto')) el('kanbanAuto').textContent = columns.automated.length;
+
+  // Set up drag-and-drop
+  setupKanbanDragDrop();
 }
 
-// localStorage-based offline kanban
-const KANBAN_STORAGE_KEY = 'adarsh_cc_kanban_tasks';
-const DEFAULT_KANBAN_TASKS = [
-  { id: 1, title: 'Build remaining Etsy templates', desc: 'Build debt-payoff, savings-goal, subscription-tracker', status: 'backlog', tag: 'money' },
-  { id: 2, title: 'Register Etsy Developer API', desc: 'Get API keys from etsy.com/developers', status: 'backlog', tag: 'money' },
-  { id: 3, title: 'Set up Polymarket account', desc: 'Create account, fund with USDC on Polygon', status: 'backlog', tag: 'money' },
-  { id: 4, title: 'Deploy Command Center to AWS', desc: 'S3 + CloudFront + DNS configuration', status: 'in-progress', tag: 'infra' },
-  { id: 5, title: 'Start brain service on EC2', desc: 'Authenticate Claude CLI, start systemd service', status: 'in-progress', tag: 'infra' },
-  { id: 6, title: 'Niche research weekly cron', desc: 'Automated trending analysis every Monday', status: 'automated', tag: 'ai' },
-  { id: 7, title: 'Brain cycle decision engine', desc: 'Claude-powered action selection every 6h', status: 'automated', tag: 'ai' },
-];
-
+// Offline fallback kanban
 function renderOfflineKanban() {
-  let tasks;
-  try {
-    const stored = localStorage.getItem(KANBAN_STORAGE_KEY);
-    tasks = stored ? JSON.parse(stored) : DEFAULT_KANBAN_TASKS;
-  } catch {
-    tasks = DEFAULT_KANBAN_TASKS;
-  }
-
   const columns = { backlog: [], 'in-progress': [], done: [], automated: [] };
-  tasks.forEach(t => {
-    if (columns[t.status]) columns[t.status].push(t);
-  });
+  columns.backlog.push(
+    { id: 'offline-1', title: 'Brain offline — connect to see live tasks', desc: 'Start the EC2 brain service', tag: 'infra' }
+  );
+  columns.automated.push(
+    { id: 'auto-1', title: 'Brain cycle engine', desc: 'Claude-powered decisions every 6h', tag: 'ai' },
+    { id: 'auto-2', title: 'Niche research cron', desc: 'Automated trending analysis', tag: 'ai' },
+  );
 
   Object.entries(columns).forEach(([colId, colTasks]) => {
     const col = document.getElementById(`col-${colId}`);
     if (!col) return;
-
     col.innerHTML = colTasks.map(t => `
-      <div class="kanban-card" draggable="true" data-id="${t.id}">
+      <div class="kanban-card" data-id="${t.id}">
         <div class="kanban-card-title">${t.title}</div>
         <div class="kanban-card-desc">${t.desc}</div>
-        <div class="kanban-card-meta">
-          <span class="kanban-tag ${t.tag}">${t.tag}</span>
-        </div>
+        <div class="kanban-card-meta"><span class="kanban-tag ${t.tag}">${t.tag}</span></div>
       </div>
     `).join('');
   });
@@ -658,25 +648,129 @@ function renderOfflineKanban() {
   if (el('kanbanAuto')) el('kanbanAuto').textContent = columns.automated.length;
 }
 
-function addTask(status) {
-  const title = prompt('Task title:');
-  if (!title) return;
-  const desc = prompt('Description (optional):') || '';
-  const tag = prompt('Tag (money/infra/ai):') || 'money';
+// ─── Task Modal ───────────────────────────────────────────────────────
 
-  let tasks;
-  try {
-    const stored = localStorage.getItem(KANBAN_STORAGE_KEY);
-    tasks = stored ? JSON.parse(stored) : DEFAULT_KANBAN_TASKS;
-  } catch {
-    tasks = DEFAULT_KANBAN_TASKS;
+function openTaskModal() {
+  document.getElementById('taskModal').classList.add('active');
+  document.getElementById('taskTitle').focus();
+}
+
+function closeTaskModal() {
+  document.getElementById('taskModal').classList.remove('active');
+  document.getElementById('taskForm').reset();
+}
+
+async function submitTask(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitTaskBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  const title = document.getElementById('taskTitle').value.trim();
+  const desc = document.getElementById('taskDesc').value.trim();
+  const actionBase = document.getElementById('taskAction').value;
+  const target = document.getElementById('taskTarget').value.trim();
+  const priority = document.getElementById('taskPriority').value;
+  const tag = document.getElementById('taskTag').value;
+
+  // Build action string
+  let action = null;
+  if (actionBase) {
+    action = actionBase.endsWith(':') && target ? `${actionBase}${target}` : actionBase;
   }
 
-  const maxId = tasks.reduce((max, t) => Math.max(max, t.id), 0);
-  tasks.push({ id: maxId + 1, title, desc, status, tag });
-  localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tasks));
-  renderOfflineKanban();
+  try {
+    const response = await fetch(`${API_BASE}/api/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description: desc || title, action, priority, tag, category: tag }),
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const task = await response.json();
+    console.log('[KANBAN] Task created:', task);
+
+    closeTaskModal();
+    renderKanbanPage(); // refresh
+  } catch (err) {
+    console.error('[KANBAN] Failed to create task:', err);
+    alert(`Failed to assign task: ${err.message}\n\nIs the brain server running?`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Assign to Brain';
+  }
 }
+
+async function deleteTask(taskId) {
+  if (!confirm('Delete this task?')) return;
+
+  try {
+    await fetch(`${API_BASE}/api/tasks/${taskId}`, { method: 'DELETE' });
+    renderKanbanPage();
+  } catch (err) {
+    console.error('[KANBAN] Failed to delete task:', err);
+  }
+}
+
+async function updateTaskStatus(taskId, newStatus) {
+  try {
+    await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    renderKanbanPage();
+  } catch (err) {
+    console.error('[KANBAN] Failed to update task:', err);
+  }
+}
+
+// ─── Kanban Drag & Drop ──────────────────────────────────────────────
+
+function setupKanbanDragDrop() {
+  const cards = document.querySelectorAll('.kanban-card[data-task-id]');
+  const columns = document.querySelectorAll('.kanban-cards');
+
+  cards.forEach(card => {
+    if (!card.dataset.taskId) return; // only user tasks can be dragged
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', card.dataset.taskId);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  });
+
+  columns.forEach(col => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const taskId = e.dataTransfer.getData('text/plain');
+      if (!taskId) return;
+
+      const colId = col.id.replace('col-', '');
+      const statusMap = { 'backlog': 'pending', 'in-progress': 'in-progress', 'done': 'completed' };
+      const newStatus = statusMap[colId];
+      if (newStatus) updateTaskStatus(parseInt(taskId), newStatus);
+    });
+  });
+}
+
+// Close modal on escape / backdrop click
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('taskModal');
+    if (modal && modal.classList.contains('active')) closeTaskModal();
+  }
+});
+document.getElementById('taskModal')?.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal-overlay')) closeTaskModal();
+});
 
 // ─── Render: Projects Page ─────────────────────────────────────────
 

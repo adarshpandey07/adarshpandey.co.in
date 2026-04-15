@@ -587,7 +587,7 @@
     <div class="page" id="page-kanban">
       <div class="page-header">
         <h1>📋 AI Kanban Board</h1>
-        <p>Self-improving autonomous task engine — runs 24/7, earns money</p>
+        <p>Assign tasks to the brain — it picks them up automatically in the next cycle</p>
       </div>
 
       <div class="hero-stats">
@@ -621,11 +621,16 @@
         </div>
       </div>
 
+      <!-- Add Task Button -->
+      <div class="section" style="margin-bottom: 0; padding-bottom: 8px;">
+        <button class="btn-primary" id="openAddTaskBtn" onclick="openTaskModal()">+ Assign Task to Brain</button>
+      </div>
+
       <div class="kanban-board" id="kanbanBoard">
         <div class="kanban-column" data-status="backlog">
           <div class="kanban-column-header">
             <h3>📝 Backlog</h3>
-            <button class="btn-icon" onclick="addTask('backlog')">+</button>
+            <button class="btn-icon" onclick="openTaskModal()">+</button>
           </div>
           <div class="kanban-cards" id="col-backlog"></div>
         </div>
@@ -648,6 +653,66 @@
           </div>
           <div class="kanban-cards" id="col-automated"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div class="modal-overlay" id="taskModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Assign Task to Brain</h2>
+          <button class="btn-icon modal-close" onclick="closeTaskModal()">&times;</button>
+        </div>
+        <form id="taskForm" onsubmit="submitTask(event)">
+          <div class="form-group">
+            <label for="taskTitle">Task Title *</label>
+            <input type="text" id="taskTitle" placeholder="e.g. Build a wedding budget planner" required>
+          </div>
+          <div class="form-group">
+            <label for="taskDesc">Description</label>
+            <textarea id="taskDesc" rows="2" placeholder="More details (optional)"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskAction">Action (optional)</label>
+              <select id="taskAction">
+                <option value="">Let brain decide</option>
+                <option value="build:">Build template</option>
+                <option value="mockups:">Generate mockups</option>
+                <option value="list:">List on Etsy</option>
+                <option value="full:">Full pipeline</option>
+                <option value="research">Niche research</option>
+                <option value="analytics">Pull analytics</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="taskTarget">Target (template ID)</label>
+              <input type="text" id="taskTarget" placeholder="e.g. debt-payoff">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskPriority">Priority</label>
+              <select id="taskPriority">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="taskTag">Category</label>
+              <select id="taskTag">
+                <option value="money">Money</option>
+                <option value="infra">Infrastructure</option>
+                <option value="ai">AI/Automation</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="closeTaskModal()">Cancel</button>
+            <button type="submit" class="btn-primary" id="submitTaskBtn">Assign to Brain</button>
+          </div>
+        </form>
       </div>
     </div>
 
