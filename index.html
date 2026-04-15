@@ -75,14 +75,14 @@
       <a href="#" class="nav-item" data-page="projects">
         <span class="nav-icon">📦</span>
         <span>All Projects</span>
-        <span class="nav-count">19</span>
+        <span class="nav-count">21</span>
       </a>
     </div>
 
     <div class="sidebar-footer">
       <div class="server-status">
-        <span class="status-dot green pulse"></span>
-        <span>All systems operational</span>
+        <span class="status-dot red pulse"></span>
+        <span>Connecting to EC2...</span>
       </div>
       <div class="last-updated" id="lastUpdated"></div>
     </div>
@@ -95,6 +95,10 @@
       <button class="menu-toggle" id="menuToggle">☰</button>
       <div class="topbar-title" id="pageTitle">Dashboard</div>
       <div class="topbar-actions">
+        <div id="connectionIndicator" class="connection-indicator disconnected" title="Connecting to EC2 Brain...">
+          <span class="conn-dot"></span>
+          <span class="conn-text">EC2</span>
+        </div>
         <div class="live-clock" id="liveClock"></div>
         <div class="topbar-avatar">AP</div>
       </div>
@@ -102,6 +106,24 @@
 
     <!-- Page: Dashboard -->
     <div class="page active" id="page-dashboard">
+      <!-- Brain Status Banner -->
+      <div class="brain-banner" id="brainBanner">
+        <div class="brain-banner-left">
+          <span id="brainStateIcon">🔌</span>
+          <div>
+            <div class="brain-banner-title">Brain: <strong id="brainState">CONNECTING...</strong></div>
+            <div class="brain-banner-sub">EC2 ap-south-1 | <span id="brainUptime">—</span> uptime | <span id="cycleCount">0</span> cycles</div>
+          </div>
+        </div>
+        <div class="brain-banner-right">
+          <span class="brain-badge" id="templateCount">0</span> templates
+          <span class="brain-sep">|</span>
+          <span class="brain-badge" id="templateBuilt">0</span> built
+          <span class="brain-sep">|</span>
+          <span class="brain-badge" id="templateLive">0</span> live
+        </div>
+      </div>
+
       <!-- Revenue Hero -->
       <div class="hero-stats">
         <div class="stat-card revenue">
@@ -171,7 +193,7 @@
         </div>
       </div>
 
-      <!-- Money Making Overview -->
+      <!-- Money Making + System Status -->
       <div class="grid-2">
         <div class="section">
           <div class="section-header">
@@ -235,7 +257,6 @@
           </div>
         </div>
 
-        <!-- System Status -->
         <div class="section">
           <div class="section-header">
             <h2>🖥️ System Status</h2>
@@ -247,13 +268,14 @@
         </div>
       </div>
 
-      <!-- Recent Activity -->
+      <!-- Recent Activity (from Brain cycles) -->
       <div class="section">
         <div class="section-header">
           <h2>📊 Recent Activity</h2>
+          <span class="badge">Live from EC2</span>
         </div>
         <div class="activity-feed" id="activityFeed">
-          <!-- Populated by JS -->
+          <!-- Populated by JS from /api/activity -->
         </div>
       </div>
     </div>
@@ -306,7 +328,7 @@
           <button class="btn-primary" onclick="window.open('https://etsy.com','_blank')">Open Etsy Store →</button>
         </div>
         <div class="template-grid" id="templateGrid">
-          <!-- Populated by JS -->
+          <!-- Populated by JS from /api/catalog -->
         </div>
       </div>
 
@@ -439,11 +461,11 @@
       </div>
     </div>
 
-    <!-- Page: Health -->
+    <!-- Page: Health (EC2 Live) -->
     <div class="page" id="page-health">
       <div class="page-header">
         <h1>🖥️ Server Health Dashboard</h1>
-        <p>Real-time monitoring for all services and infrastructure</p>
+        <p>Live metrics from EC2 Brain Server (13.203.99.103) — auto-refreshes every 30s</p>
       </div>
 
       <div class="hero-stats">
@@ -474,28 +496,88 @@
         <div class="stat-card">
           <div class="stat-icon">📈</div>
           <div class="stat-info">
-            <div class="stat-label">Uptime</div>
-            <div class="stat-value">99.9%</div>
-            <div class="stat-sub">Last 30 days</div>
+            <div class="stat-label">EC2 Uptime</div>
+            <div class="stat-value" id="ec2Uptime">—</div>
+            <div class="stat-sub">ap-south-1 (Mumbai)</div>
           </div>
         </div>
       </div>
 
+      <!-- EC2 Server Metrics -->
       <div class="section">
         <div class="section-header">
-          <h2>Supabase Projects</h2>
+          <h2>🧠 EC2 Brain Server — 13.203.99.103</h2>
           <button class="btn-secondary" onclick="refreshHealth()">↻ Refresh</button>
         </div>
-        <div class="health-grid" id="healthGrid">
-          <!-- Populated by JS -->
+        <div class="ec2-metrics-grid">
+          <div class="ec2-metric-card">
+            <div class="ec2-metric-label">CPU Load</div>
+            <div class="ec2-metric-value" id="ec2Cpu">—</div>
+            <div class="ec2-metric-sub" id="ec2CpuCores">—</div>
+          </div>
+          <div class="ec2-metric-card">
+            <div class="ec2-metric-label">Memory Usage</div>
+            <div class="ec2-metric-value" id="ec2Memory">—</div>
+            <div class="ec2-metric-sub" id="ec2MemDetail">—</div>
+          </div>
+          <div class="ec2-metric-card">
+            <div class="ec2-metric-label">Disk Usage</div>
+            <div class="ec2-metric-value" id="ec2Disk">—</div>
+            <div class="ec2-metric-sub" id="ec2DiskDetail">—</div>
+          </div>
+          <div class="ec2-metric-card">
+            <div class="ec2-metric-label">Node.js</div>
+            <div class="ec2-metric-value" id="ec2Node">—</div>
+            <div class="ec2-metric-sub" id="ec2Platform">—</div>
+          </div>
+          <div class="ec2-metric-card">
+            <div class="ec2-metric-label">Brain Process</div>
+            <div class="ec2-metric-value" id="ec2ProcessUptime">—</div>
+            <div class="ec2-metric-sub">Process uptime</div>
+          </div>
+          <div class="ec2-metric-card">
+            <div class="ec2-metric-label">Hostname</div>
+            <div class="ec2-metric-value" id="ec2Hostname">—</div>
+            <div class="ec2-metric-sub">Instance name</div>
+          </div>
         </div>
       </div>
 
+      <!-- Service Health -->
       <div class="section">
         <div class="section-header">
-          <h2>AWS Services</h2>
+          <h2>Services</h2>
         </div>
-        <div class="health-grid" id="awsHealthGrid">
+        <div class="health-grid">
+          <div class="health-card">
+            <span style="font-size:20px">🧠</span>
+            <span class="name">Brain Service</span>
+            <span class="status-indicator online" id="svcBrain"></span>
+          </div>
+          <div class="health-card">
+            <span style="font-size:20px">📱</span>
+            <span class="name">Telegram Bot</span>
+            <span class="status-indicator online" id="svcTelegram"></span>
+          </div>
+          <div class="health-card">
+            <span style="font-size:20px">🌐</span>
+            <span class="name">API Server</span>
+            <span class="status-indicator ${isConnected ? 'online' : 'offline'}" id="svcApi"></span>
+          </div>
+          <div class="health-card">
+            <span style="font-size:20px">📦</span>
+            <span class="name">S3 Static Site</span>
+            <span class="status-indicator online"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Supabase Projects -->
+      <div class="section">
+        <div class="section-header">
+          <h2>Supabase Projects</h2>
+        </div>
+        <div class="health-grid" id="healthGrid">
           <!-- Populated by JS -->
         </div>
       </div>

@@ -1,10 +1,29 @@
 /**
  * Adarsh Command Center — Main Application
- * Enhanced with: Supabase health checks, localStorage Kanban persistence,
- * revenue tracker, auto-refresh, and keyboard shortcuts.
+ * Connected to EC2 Brain API at 13.203.99.103:3000
+ *
+ * Features:
+ *   - Live brain status from EC2
+ *   - Real template catalog from moneymaker pipeline
+ *   - Real cycle history as activity feed
+ *   - Server health from EC2 OS metrics
+ *   - Dynamic kanban from brain state
+ *   - Auto-refresh every 30s on active page
  */
 
-// ─── Data ───────────────────────────────────────────────────────────
+// ─── Configuration ─────────────────────────────────────────────────
+
+const API_BASE = 'http://13.203.99.103:3000';
+const REFRESH_INTERVAL_MS = 30000; // 30 seconds
+const API_TIMEOUT_MS = 10000;
+
+// Connection state
+let isConnected = false;
+let lastApiResponse = null;
+let connectionRetries = 0;
+const MAX_RETRIES = 3;
+
+// ─── Static Data (fallbacks when API is offline) ───────────────────
 
 const SUPABASE_PROJECTS = [
   { name: 'Financial Analysis', icon: '💹', type: 'Supabase' },
@@ -28,314 +47,107 @@ const SUPABASE_PROJECTS = [
   { name: 'Vardhman Clinic', icon: '🏥', type: 'Supabase' },
 ];
 
-const AWS_SERVICES = [
-  { name: 'S3 (Static Hosting)', icon: '📦', type: 'AWS' },
-  { name: 'CloudFront CDN', icon: '🌐', type: 'AWS' },
-  { name: 'Lambda Functions', icon: '⚡', type: 'AWS' },
-  { name: 'EventBridge (Cron)', icon: '⏰', type: 'AWS' },
-];
+// ─── API Client ────────────────────────────────────────────────────
 
-const ETSY_TEMPLATES = [
-  { id: 'budget-tracker', name: '50/30/20 Budget Tracker', price: '$7.99', status: 'built', tags: ['finance', 'budget', 'popular'] },
-  { id: 'bookkeeping', name: 'Small Business Bookkeeping', price: '$9.99', status: 'built', tags: ['business', 'accounting'] },
-  { id: 'debt-payoff', name: 'Debt Payoff Tracker', price: '$6.99', status: 'planned', tags: ['finance', 'debt', 'snowball'] },
-  { id: 'savings-goal', name: 'Savings Goal Tracker', price: '$5.99', status: 'planned', tags: ['savings', 'goals'] },
-  { id: 'subscription-tracker', name: 'Subscription Tracker', price: '$4.99', status: 'planned', tags: ['subscriptions', 'bills'] },
-];
-
-const DEFAULT_KANBAN_TASKS = [
-  { id: 1, title: 'Build remaining 3 Etsy templates', desc: 'Run build:debt, build:savings, build:subs via Google Sheets API', status: 'backlog', tag: 'money' },
-  { id: 2, title: 'Register Etsy Developer API', desc: 'Go to etsy.com/developers, create app, get API keys', status: 'backlog', tag: 'money' },
-  { id: 3, title: 'Set up Polymarket account', desc: 'Create account, fund with USDC on Polygon network', status: 'backlog', tag: 'money' },
-  { id: 4, title: 'Build Polymarket trading bot', desc: 'Edge detection + Kelly criterion sizing + auto-execution', status: 'backlog', tag: 'ai' },
-  { id: 5, title: 'Deploy Command Center to AWS', desc: 'S3 + CloudFront + DNS configuration', status: 'in-progress', tag: 'infra' },
-  { id: 6, title: 'Set up Lambda health checks', desc: 'Ping all Supabase projects every 5 min, log to CloudWatch', status: 'backlog', tag: 'infra' },
-  { id: 7, title: 'List first 5 templates on Etsy', desc: 'Use Etsy API to create listings with mockup images', status: 'backlog', tag: 'money' },
-  { id: 8, title: 'Niche research weekly cron', desc: 'Automated trending analysis every Monday', status: 'automated', tag: 'ai' },
-  { id: 9, title: 'Daily analytics reporting', desc: 'Pull Etsy stats, update dashboard, log revenue', status: 'automated', tag: 'ai' },
-  { id: 10, title: 'Auto-generate SEO tags', desc: 'AI analyzes top sellers and suggests optimized tags', status: 'automated', tag: 'ai' },
-];
-
-const ACTIVITIES = [
-  { icon: '🛠️', text: 'Built <strong>3 new templates</strong> — Debt Payoff, Savings Goal, Subscription Tracker', time: 'just now' },
-  { icon: '🎨', text: 'Generated <strong>mockup images</strong> for all 5 templates', time: '5 min ago' },
-  { icon: '🔧', text: '<strong>Pipeline runner</strong> wired up with full automation', time: '10 min ago' },
-  { icon: '📊', text: 'Added <strong>research module</strong> with niche scoring algorithm', time: '15 min ago' },
-  { icon: '🚀', text: 'Created <strong>Command Center</strong> project on AWS', time: '20 min ago' },
-  { icon: '📦', text: 'Committed <strong>3,418 lines</strong> to adarsh-moneymaker repo', time: '30 min ago' },
-];
-
-// ─── [1] Supabase Health Checks ─────────────────────────────────────
-//
-// TO ENABLE REAL HEALTH CHECKS:
-// 1. Add your Supabase project refs below (find them in each project's Settings > General)
-// 2. Add your anon keys for each project
-// 3. Set USE_REAL_HEALTH_CHECKS to true
-//
-// Example:
-//   const SUPABASE_PROJECT_REFS = {
-//     'Financial Analysis': { ref: 'abcdefghijklmnop', anonKey: 'eyJhbGci...' },
-//     'Franchise Hub':      { ref: 'qrstuvwxyz123456', anonKey: 'eyJhbGci...' },
-//     // ... add all 19 projects
-//   };
-
-const USE_REAL_HEALTH_CHECKS = false;
-const SUPABASE_PROJECT_REFS = {
-  // 'Financial Analysis': { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Franchise Hub':      { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Gilehri R&D':        { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'HRMS':               { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Marketing 360':      { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Raja Portal':        { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Task Flow Portal':   { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'All-in-One Sales':   { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Customer Support':   { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Darshan AI':         { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Finance 360':        { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Katyayani EXIM':     { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Katyayani AI':       { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Komal Extension':    { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Munmun':             { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Procurement Hub':    { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Shaadi Matcher':     { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Stock':              { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-  // 'Vardhman Clinic':    { ref: 'YOUR_PROJECT_REF_HERE', anonKey: 'YOUR_ANON_KEY_HERE' },
-};
-
-const HEALTH_CHECK_TIMEOUT_MS = 8000;
-
-// Stores the latest health status for each service: { name: 'online'|'warning'|'offline', ... }
-let healthResults = {};
-
-/**
- * Pings a single Supabase project's REST API.
- * Returns 'online', 'warning' (slow >3s), or 'offline'.
- */
-async function pingSupabaseProject(projectName) {
-  const config = SUPABASE_PROJECT_REFS[projectName];
-  if (!config || !USE_REAL_HEALTH_CHECKS) {
-    // Simulated: 95% online, 4% warning, 1% offline
-    const rand = Math.random();
-    if (rand < 0.01) return 'offline';
-    if (rand < 0.05) return 'warning';
-    return 'online';
-  }
-
-  const url = `https://${config.ref}.supabase.co/rest/v1/`;
-  const startTime = performance.now();
+async function apiFetch(endpoint) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
-
-    const response = await fetch(url, {
-      method: 'HEAD',
-      headers: {
-        'apikey': config.anonKey,
-        'Authorization': `Bearer ${config.anonKey}`,
-      },
+    const response = await fetch(`${API_BASE}${endpoint}`, {
       signal: controller.signal,
+      headers: { 'Accept': 'application/json' },
     });
-
     clearTimeout(timeoutId);
-    const elapsed = performance.now() - startTime;
 
-    if (!response.ok) return 'offline';
-    if (elapsed > 3000) return 'warning';
-    return 'online';
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const data = await response.json();
+    isConnected = true;
+    connectionRetries = 0;
+    lastApiResponse = Date.now();
+    updateConnectionStatus(true);
+    return data;
   } catch (err) {
-    return 'offline';
+    clearTimeout(timeoutId);
+    isConnected = false;
+    connectionRetries++;
+    updateConnectionStatus(false);
+    console.warn(`[API] ${endpoint} failed:`, err.message);
+    return null;
   }
 }
 
-/**
- * Runs health checks against all Supabase projects and AWS services.
- * Updates the healthResults object and re-renders the health grid.
- */
-async function checkSupabaseHealth() {
-  // Ping all Supabase projects concurrently
-  const supabaseChecks = SUPABASE_PROJECTS.map(async (project) => {
-    const status = await pingSupabaseProject(project.name);
-    healthResults[project.name] = status;
-  });
+function updateConnectionStatus(connected) {
+  const dot = document.querySelector('.sidebar-footer .status-dot');
+  const text = document.querySelector('.sidebar-footer .server-status span:last-child');
+  const indicator = document.getElementById('connectionIndicator');
 
-  // AWS services are simulated for now (would need CloudWatch API access for real checks)
-  const awsChecks = AWS_SERVICES.map(async (service) => {
-    // Simulated: AWS services are almost always online
-    const rand = Math.random();
-    if (rand < 0.005) healthResults[service.name] = 'offline';
-    else if (rand < 0.02) healthResults[service.name] = 'warning';
-    else healthResults[service.name] = 'online';
-  });
-
-  await Promise.all([...supabaseChecks, ...awsChecks]);
-
-  // Update health page counters
-  const statuses = Object.values(healthResults);
-  const onlineCount = statuses.filter(s => s === 'online').length;
-  const warningCount = statuses.filter(s => s === 'warning').length;
-  const offlineCount = statuses.filter(s => s === 'offline').length;
-
-  const el = (id) => document.getElementById(id);
-  if (el('healthOnline')) el('healthOnline').textContent = onlineCount;
-  if (el('healthWarnings')) el('healthWarnings').textContent = warningCount;
-  if (el('healthDown')) el('healthDown').textContent = offlineCount;
-  if (el('servicesOnline')) el('servicesOnline').textContent = onlineCount;
-
-  renderHealthGrid();
-}
-
-// ─── [2] Local Storage for Kanban ───────────────────────────────────
-
-const KANBAN_STORAGE_KEY = 'adarsh_cc_kanban_tasks';
-
-/**
- * Loads Kanban tasks from localStorage, falling back to DEFAULT_KANBAN_TASKS.
- */
-function loadKanbanTasks() {
-  try {
-    const stored = localStorage.getItem(KANBAN_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (e) {
-    console.warn('Failed to load Kanban tasks from localStorage, using defaults.', e);
+  if (dot) {
+    dot.className = `status-dot ${connected ? 'green' : 'red'} pulse`;
   }
-  return JSON.parse(JSON.stringify(DEFAULT_KANBAN_TASKS));
-}
-
-/**
- * Saves the current Kanban tasks to localStorage.
- */
-function saveKanbanTasks() {
-  try {
-    localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(KANBAN_TASKS));
-  } catch (e) {
-    console.warn('Failed to save Kanban tasks to localStorage.', e);
+  if (text) {
+    text.textContent = connected ? 'EC2 Brain connected' : 'EC2 Brain offline';
+  }
+  if (indicator) {
+    indicator.className = `connection-indicator ${connected ? 'connected' : 'disconnected'}`;
+    indicator.title = connected
+      ? `Connected to EC2 Brain (${API_BASE})`
+      : `Disconnected from EC2 Brain — showing cached/offline data`;
   }
 }
 
-// Initialize KANBAN_TASKS from localStorage (or defaults)
-let KANBAN_TASKS = loadKanbanTasks();
+// ─── Data Loaders ──────────────────────────────────────────────────
 
-// ─── [3] Revenue Tracker (Etsy) ─────────────────────────────────────
+// Cache for API data
+let cachedStatus = null;
+let cachedCatalog = null;
+let cachedHealth = null;
+let cachedCycles = null;
+let cachedKanban = null;
+let cachedActivity = null;
+let cachedLearnings = null;
 
-const REVENUE_STORAGE_KEY = 'adarsh_cc_revenue_entries';
-
-/**
- * Adds a revenue entry to localStorage.
- * @param {number} amount - Revenue amount in USD
- * @param {string} source - Source of revenue (e.g., 'etsy', 'polymarket')
- * @param {string} [date] - ISO date string. Defaults to today.
- */
-function addRevenue(amount, source, date) {
-  if (typeof amount !== 'number' || amount <= 0) {
-    console.warn('addRevenue: amount must be a positive number.');
-    return;
-  }
-  const entries = getRevenueEntries();
-  entries.push({
-    id: Date.now(),
-    amount: amount,
-    source: source || 'etsy',
-    date: date || new Date().toISOString().slice(0, 10),
-    createdAt: new Date().toISOString(),
-  });
-  try {
-    localStorage.setItem(REVENUE_STORAGE_KEY, JSON.stringify(entries));
-  } catch (e) {
-    console.warn('Failed to save revenue entry.', e);
-  }
+async function loadBrainStatus() {
+  const data = await apiFetch('/api/status');
+  if (data) cachedStatus = data;
+  return cachedStatus;
 }
 
-/**
- * Reads all revenue entries from localStorage.
- * @returns {Array} Array of revenue entry objects.
- */
-function getRevenueEntries() {
-  try {
-    const stored = localStorage.getItem(REVENUE_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (e) {
-    console.warn('Failed to load revenue entries.', e);
-  }
-  return [];
+async function loadCatalog() {
+  const data = await apiFetch('/api/catalog');
+  if (data) cachedCatalog = data;
+  return cachedCatalog;
 }
 
-/**
- * Calculates revenue statistics from stored entries.
- * @returns {Object} { total, monthlyAvg, dailyAvg, thisMonth, entryCount, bySource }
- */
-function getRevenueStats() {
-  const entries = getRevenueEntries();
-  if (entries.length === 0) {
-    return { total: 0, monthlyAvg: 0, dailyAvg: 0, thisMonth: 0, entryCount: 0, bySource: {} };
-  }
-
-  const total = entries.reduce((sum, e) => sum + e.amount, 0);
-
-  // Determine date range for averages
-  const dates = entries.map(e => new Date(e.date));
-  const earliest = new Date(Math.min(...dates));
-  const latest = new Date(Math.max(...dates));
-  const daySpan = Math.max(1, Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) + 1);
-  const monthSpan = Math.max(1, (latest.getFullYear() - earliest.getFullYear()) * 12 + (latest.getMonth() - earliest.getMonth()) + 1);
-
-  const dailyAvg = total / daySpan;
-  const monthlyAvg = total / monthSpan;
-
-  // This month's revenue
-  const now = new Date();
-  const thisMonthStr = now.toISOString().slice(0, 7); // "YYYY-MM"
-  const thisMonth = entries
-    .filter(e => e.date.startsWith(thisMonthStr))
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  // Revenue by source
-  const bySource = {};
-  entries.forEach(e => {
-    bySource[e.source] = (bySource[e.source] || 0) + e.amount;
-  });
-
-  return {
-    total: Math.round(total * 100) / 100,
-    monthlyAvg: Math.round(monthlyAvg * 100) / 100,
-    dailyAvg: Math.round(dailyAvg * 100) / 100,
-    thisMonth: Math.round(thisMonth * 100) / 100,
-    entryCount: entries.length,
-    bySource,
-  };
+async function loadHealth() {
+  const data = await apiFetch('/api/health');
+  if (data) cachedHealth = data;
+  return cachedHealth;
 }
 
-/**
- * Updates the Etsy page Revenue stat card with real data from localStorage.
- */
-function renderRevenueStats() {
-  const stats = getRevenueStats();
-  // Update the Revenue stat card on the Etsy page (4th stat card)
-  const etsyPage = document.getElementById('page-etsy');
-  if (!etsyPage) return;
+async function loadCycles(count = 20) {
+  const data = await apiFetch(`/api/cycles?count=${count}`);
+  if (data) cachedCycles = data;
+  return cachedCycles;
+}
 
-  const statValues = etsyPage.querySelectorAll('.stat-value');
-  const statSubs = etsyPage.querySelectorAll('.stat-sub');
+async function loadKanban() {
+  const data = await apiFetch('/api/kanban');
+  if (data) cachedKanban = data;
+  return cachedKanban;
+}
 
-  // The 4th stat card (index 3) is the Revenue card
-  if (statValues[3]) {
-    statValues[3].textContent = stats.total > 0 ? `$${stats.total.toFixed(2)}` : '$0';
-  }
-  if (statSubs[3]) {
-    if (stats.entryCount > 0) {
-      statSubs[3].textContent = `$${stats.dailyAvg.toFixed(2)}/day avg | ${stats.entryCount} sales`;
-    } else {
-      statSubs[3].textContent = 'Just getting started';
-    }
-  }
+async function loadActivity(count = 20) {
+  const data = await apiFetch(`/api/activity?count=${count}`);
+  if (data) cachedActivity = data;
+  return cachedActivity;
+}
+
+async function loadLearnings() {
+  const data = await apiFetch('/api/learnings');
+  if (data) cachedLearnings = data;
+  return cachedLearnings;
 }
 
 // ─── Navigation ─────────────────────────────────────────────────────
@@ -349,37 +161,27 @@ const PAGE_TITLES = {
   projects: 'All Projects',
 };
 
-// Ordered page list for keyboard shortcuts (1-6)
 const PAGE_ORDER = ['dashboard', 'etsy', 'polymarket', 'health', 'kanban', 'projects'];
 
 let currentPage = 'dashboard';
 
 function navigateTo(page) {
-  // Hide all pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-  // Show target page
   const target = document.getElementById(`page-${page}`);
   if (target) target.classList.add('active');
 
-  // Update nav
   const navItem = document.querySelector(`[data-page="${page}"]`);
   if (navItem) navItem.classList.add('active');
 
-  // Update title
   document.getElementById('pageTitle').textContent = PAGE_TITLES[page] || page;
-
-  // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
 
-  // Track current page
   currentPage = page;
 
-  // Render revenue stats when visiting Etsy page
-  if (page === 'etsy') {
-    renderRevenueStats();
-  }
+  // Load data for the page
+  refreshCurrentPage();
 }
 
 // Nav click handlers
@@ -396,21 +198,11 @@ document.getElementById('menuToggle').addEventListener('click', () => {
   document.getElementById('sidebar').classList.toggle('open');
 });
 
-// ─── [5] Keyboard Shortcuts ─────────────────────────────────────────
-//
-// Press 1-6 to switch pages:
-//   1 = Dashboard, 2 = Etsy, 3 = Polymarket,
-//   4 = Health, 5 = Kanban, 6 = Projects
-// Press 'r' to refresh health checks (works from any page)
-
+// Keyboard shortcuts (1-6 for pages, r for refresh)
 document.addEventListener('keydown', (e) => {
-  // Don't capture shortcuts when typing in input fields
   const tag = e.target.tagName.toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) {
-    return;
-  }
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
 
-  // Number keys 1-6 for page navigation
   const num = parseInt(e.key);
   if (num >= 1 && num <= 6) {
     e.preventDefault();
@@ -418,10 +210,9 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  // 'r' key to refresh health checks
   if (e.key === 'r' || e.key === 'R') {
     e.preventDefault();
-    refreshHealth();
+    refreshCurrentPage();
     return;
   }
 });
@@ -433,21 +224,86 @@ function updateClock() {
   const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const date = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   document.getElementById('liveClock').textContent = `${date} ${time}`;
-  document.getElementById('lastUpdated').textContent = `Updated: ${time}`;
+  document.getElementById('lastUpdated').textContent = lastApiResponse
+    ? `Synced: ${new Date(lastApiResponse).toLocaleTimeString()}`
+    : 'Not synced yet';
 }
 setInterval(updateClock, 1000);
 updateClock();
 
-// ─── Render Status List (Dashboard) ────────────────────────────────
+// ─── Render: Dashboard ─────────────────────────────────────────────
+
+async function renderDashboard() {
+  const [status, catalog, activity] = await Promise.all([
+    loadBrainStatus(),
+    loadCatalog(),
+    loadActivity(10),
+  ]);
+
+  // Hero stats
+  const el = (id) => document.getElementById(id);
+
+  if (status) {
+    if (el('brainState')) el('brainState').textContent = status.state === 'running' ? 'RUNNING' : 'PAUSED';
+    if (el('brainStateIcon')) el('brainStateIcon').textContent = status.state === 'running' ? '🟢' : '⏸';
+    if (el('cycleCount')) el('cycleCount').textContent = status.cycleCount;
+    if (el('brainUptime')) el('brainUptime').textContent = status.uptime || '—';
+  }
+
+  if (catalog && catalog.stats) {
+    if (el('templateCount')) el('templateCount').textContent = catalog.stats.total;
+    if (el('templateBuilt')) el('templateBuilt').textContent = catalog.stats.built;
+    if (el('templateLive')) el('templateLive').textContent = catalog.stats.live;
+    if (el('templatePlanned')) el('templatePlanned').textContent = catalog.stats.planned;
+  }
+
+  if (el('servicesOnline')) el('servicesOnline').textContent = SUPABASE_PROJECTS.length;
+
+  // AI Tasks count
+  if (status && el('aiTasksCount')) {
+    el('aiTasksCount').textContent = status.state === 'running' ? '3' : '0';
+  }
+
+  // Money card progress
+  if (catalog && catalog.stats) {
+    const total = catalog.stats.total || 5;
+    const built = catalog.stats.built || 0;
+    const pct = Math.round((built / total) * 100);
+    const fill = document.querySelector('.money-card.etsy .progress-fill');
+    const label = document.querySelector('.money-card.etsy .progress-label');
+    if (fill) fill.style.width = `${pct}%`;
+    if (label) label.textContent = `${built}/${total} templates built`;
+
+    // Template mini stats
+    const miniValues = document.querySelectorAll('.money-card.etsy .mini-value');
+    if (miniValues[0]) miniValues[0].textContent = total;
+    if (miniValues[1]) miniValues[1].textContent = built;
+  }
+
+  // Status list
+  renderStatusList();
+
+  // Activity feed
+  renderActivityFeed(activity);
+}
 
 function renderStatusList() {
   const list = document.getElementById('statusList');
   if (!list) return;
 
-  const allServices = [...SUPABASE_PROJECTS.slice(0, 8), ...AWS_SERVICES];
-  list.innerHTML = allServices.map(s => {
-    const status = healthResults[s.name] || 'online';
-    const dotClass = status === 'online' ? 'green' : status === 'warning' ? 'orange' : 'red';
+  const ec2Status = isConnected ? 'online' : 'offline';
+
+  const services = [
+    { icon: '🧠', name: 'EC2 Brain Server', type: 'AWS EC2', status: ec2Status },
+    { icon: '🌐', name: 'Brain API', type: 'Express', status: ec2Status },
+    { icon: '📱', name: 'Telegram Bot', type: 'Bot', status: ec2Status },
+    ...SUPABASE_PROJECTS.slice(0, 8).map(s => ({
+      icon: s.icon, name: s.name, type: s.type, status: 'online',
+    })),
+  ];
+
+  list.innerHTML = services.map(s => {
+    const dotClass = s.status === 'online' ? 'green' : s.status === 'warning' ? 'orange' : 'red';
     return `
     <div class="status-item">
       <span class="status-dot ${dotClass}"></span>
@@ -458,122 +314,333 @@ function renderStatusList() {
   }).join('');
 }
 
-// ─── Render Activity Feed ──────────────────────────────────────────
-
-function renderActivityFeed() {
+function renderActivityFeed(activityData) {
   const feed = document.getElementById('activityFeed');
   if (!feed) return;
 
-  feed.innerHTML = ACTIVITIES.map(a => `
-    <div class="activity-item">
-      <div class="activity-icon">${a.icon}</div>
-      <div class="activity-text">${a.text}</div>
-      <div class="activity-time">${a.time}</div>
-    </div>
-  `).join('');
+  if (!activityData || !activityData.activities || activityData.activities.length === 0) {
+    feed.innerHTML = `
+      <div class="activity-item">
+        <div class="activity-icon">🔌</div>
+        <div class="activity-text">${isConnected
+          ? 'No cycle history yet — brain is waiting for first cycle'
+          : '<strong>EC2 Brain offline</strong> — connect to see live activity'}</div>
+        <div class="activity-time">now</div>
+      </div>
+    `;
+    return;
+  }
+
+  const actionIcons = {
+    'build': '🛠️',
+    'list': '📋',
+    'research': '🔍',
+    'analytics': '📊',
+    'optimize': '⚡',
+    'mockups': '🎨',
+    'full': '🚀',
+    'idle': '😴',
+    'error': '❌',
+  };
+
+  feed.innerHTML = activityData.activities.map(a => {
+    const icon = actionIcons[a.action?.split(':')[0]] || (a.type === 'error' ? '❌' : '🔄');
+    const timeStr = a.timestamp ? timeAgo(new Date(a.timestamp)) : 'unknown';
+    const statusBadge = a.status === 'success'
+      ? '<span style="color:var(--green)">success</span>'
+      : a.status === 'failed'
+      ? '<span style="color:var(--red)">failed</span>'
+      : a.status;
+
+    return `
+      <div class="activity-item">
+        <div class="activity-icon">${icon}</div>
+        <div class="activity-text">
+          <strong>${a.action || 'unknown'}</strong> — ${a.summary || 'no details'} [${statusBadge}]
+          ${a.duration ? `<span class="activity-duration">(${a.duration})</span>` : ''}
+        </div>
+        <div class="activity-time">${timeStr}</div>
+      </div>
+    `;
+  }).join('');
 }
 
-// ─── Render Template Grid (Etsy Page) ──────────────────────────────
+function timeAgo(date) {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
 
-function renderTemplateGrid() {
+// ─── Render: Etsy Page ─────────────────────────────────────────────
+
+async function renderEtsyPage() {
+  const catalog = await loadCatalog();
+  if (!catalog) return;
+
+  const el = (id) => document.getElementById(id);
+  const etsyPage = document.getElementById('page-etsy');
+  if (!etsyPage) return;
+
+  // Stat cards
+  const statValues = etsyPage.querySelectorAll('.hero-stats .stat-value');
+  const statSubs = etsyPage.querySelectorAll('.hero-stats .stat-sub');
+
+  if (statValues[0]) statValues[0].textContent = catalog.stats.total;
+  if (statSubs[0]) statSubs[0].textContent = `${catalog.stats.built} built, ${catalog.stats.planned} planned, ${catalog.stats.live} live`;
+
+  if (catalog.templates.length > 0) {
+    const prices = catalog.templates.map(t => parseFloat(t.price) || 0).filter(p => p > 0);
+    const avgPrice = prices.length > 0 ? (prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+    if (statValues[1]) statValues[1].textContent = `$${avgPrice.toFixed(2)}`;
+    if (statSubs[1]) statSubs[1].textContent = `Net ~$${(avgPrice * 0.8).toFixed(2)} after fees`;
+
+    const salesNeeded = avgPrice > 0 ? Math.ceil(540 / (avgPrice * 0.8)) : 0;
+    if (statValues[2]) statValues[2].textContent = `~${salesNeeded}/mo`;
+    if (statSubs[2]) statSubs[2].textContent = `~${(salesNeeded / 30).toFixed(1)} per day`;
+  }
+
+  // Template grid
+  renderTemplateGrid(catalog.templates);
+
+  // Revenue stats
+  renderRevenueStats();
+}
+
+function renderTemplateGrid(templates) {
   const grid = document.getElementById('templateGrid');
   if (!grid) return;
 
-  grid.innerHTML = ETSY_TEMPLATES.map(t => `
+  if (!templates || templates.length === 0) {
+    grid.innerHTML = '<div class="empty-state">No templates yet — waiting for brain to build them</div>';
+    return;
+  }
+
+  grid.innerHTML = templates.map(t => {
+    const statusClass = t.status === 'live' ? 'live' : t.status === 'built' ? 'built' : 'planned';
+    const tags = (t.tags || []).slice(0, 5);
+
+    return `
     <div class="template-card">
-      <h3>${t.name}</h3>
-      <div class="price">${t.price}</div>
-      <span class="template-status ${t.status}">${t.status}</span>
+      <h3>${t.name || t.title}</h3>
+      <div class="price">$${t.price || '0.00'}</div>
+      <span class="template-status ${statusClass}">${t.status}</span>
+      ${t.sheetId ? `<a href="${t.copyLink}" target="_blank" class="template-link">Open Sheet</a>` : ''}
       <div class="template-tags">
-        ${t.tags.map(tag => `<span class="template-tag">${tag}</span>`).join('')}
+        ${tags.map(tag => `<span class="template-tag">${tag}</span>`).join('')}
       </div>
+    </div>
+  `;
+  }).join('');
+}
+
+// Revenue tracking (localStorage)
+const REVENUE_STORAGE_KEY = 'adarsh_cc_revenue_entries';
+
+function getRevenueEntries() {
+  try {
+    const stored = localStorage.getItem(REVENUE_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) { /* empty */ }
+  return [];
+}
+
+function getRevenueStats() {
+  const entries = getRevenueEntries();
+  if (entries.length === 0) {
+    return { total: 0, dailyAvg: 0, entryCount: 0 };
+  }
+  const total = entries.reduce((sum, e) => sum + e.amount, 0);
+  const dates = entries.map(e => new Date(e.date));
+  const earliest = new Date(Math.min(...dates));
+  const latest = new Date(Math.max(...dates));
+  const daySpan = Math.max(1, Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) + 1);
+  return {
+    total: Math.round(total * 100) / 100,
+    dailyAvg: Math.round((total / daySpan) * 100) / 100,
+    entryCount: entries.length,
+  };
+}
+
+function renderRevenueStats() {
+  const stats = getRevenueStats();
+  const etsyPage = document.getElementById('page-etsy');
+  if (!etsyPage) return;
+
+  const statValues = etsyPage.querySelectorAll('.hero-stats .stat-value');
+  const statSubs = etsyPage.querySelectorAll('.hero-stats .stat-sub');
+
+  if (statValues[3]) {
+    statValues[3].textContent = stats.total > 0 ? `$${stats.total.toFixed(2)}` : '$0';
+  }
+  if (statSubs[3]) {
+    if (stats.entryCount > 0) {
+      statSubs[3].textContent = `$${stats.dailyAvg.toFixed(2)}/day avg | ${stats.entryCount} sales`;
+    } else {
+      statSubs[3].textContent = 'Just getting started';
+    }
+  }
+}
+
+// ─── Render: Health Page ───────────────────────────────────────────
+
+async function renderHealthPage() {
+  const health = await loadHealth();
+
+  const el = (id) => document.getElementById(id);
+
+  if (health) {
+    // Update EC2 stats
+    if (el('ec2Cpu')) el('ec2Cpu').textContent = `${health.cpu.loadPercent}%`;
+    if (el('ec2CpuCores')) el('ec2CpuCores').textContent = `${health.cpu.cores} cores`;
+    if (el('ec2Memory')) el('ec2Memory').textContent = `${health.memory.usedPercent}%`;
+    if (el('ec2MemDetail')) el('ec2MemDetail').textContent = `${health.memory.freeGB}GB free / ${health.memory.totalGB}GB`;
+    if (el('ec2Disk')) el('ec2Disk').textContent = health.disk?.usedPercent || '—';
+    if (el('ec2DiskDetail')) el('ec2DiskDetail').textContent = `${health.disk?.available || '?'} available`;
+    if (el('ec2Uptime')) el('ec2Uptime').textContent = health.uptime || '—';
+    if (el('ec2ProcessUptime')) el('ec2ProcessUptime').textContent = health.processUptime || '—';
+    if (el('ec2Node')) el('ec2Node').textContent = health.nodeVersion || '—';
+    if (el('ec2Hostname')) el('ec2Hostname').textContent = health.hostname || '—';
+    if (el('ec2Platform')) el('ec2Platform').textContent = health.platform || '—';
+
+    // Service statuses
+    if (el('svcBrain')) {
+      el('svcBrain').className = `status-indicator ${health.services.brain === 'ok' ? 'online' : 'warning'}`;
+    }
+    if (el('svcTelegram')) {
+      el('svcTelegram').className = `status-indicator ${health.services.telegram === 'configured' ? 'online' : 'warning'}`;
+    }
+
+    // Update header stats
+    if (el('healthOnline')) {
+      const online = SUPABASE_PROJECTS.length + (isConnected ? 4 : 0); // supabase + EC2 services
+      el('healthOnline').textContent = online;
+    }
+    if (el('healthWarnings')) el('healthWarnings').textContent = isConnected ? '0' : '1';
+    if (el('healthDown')) el('healthDown').textContent = isConnected ? '0' : '1';
+  }
+
+  // Render Supabase project grid
+  renderSupabaseGrid();
+}
+
+function renderSupabaseGrid() {
+  const grid = document.getElementById('healthGrid');
+  if (!grid) return;
+
+  grid.innerHTML = SUPABASE_PROJECTS.map(p => `
+    <div class="health-card">
+      <span style="font-size:20px">${p.icon}</span>
+      <span class="name">${p.name}</span>
+      <span class="status-indicator online"></span>
     </div>
   `).join('');
 }
 
-// ─── Render Health Grid ────────────────────────────────────────────
-
-function renderHealthGrid() {
-  const grid = document.getElementById('healthGrid');
-  if (!grid) return;
-
-  grid.innerHTML = SUPABASE_PROJECTS.map(p => {
-    const status = healthResults[p.name] || 'online';
-    return `
-    <div class="health-card">
-      <span style="font-size:20px">${p.icon}</span>
-      <span class="name">${p.name}</span>
-      <span class="status-indicator ${status}"></span>
-    </div>
-  `;
-  }).join('');
-
-  const awsGrid = document.getElementById('awsHealthGrid');
-  if (!awsGrid) return;
-
-  awsGrid.innerHTML = AWS_SERVICES.map(s => {
-    const status = healthResults[s.name] || 'online';
-    return `
-    <div class="health-card">
-      <span style="font-size:20px">${s.icon}</span>
-      <span class="name">${s.name}</span>
-      <span class="status-indicator ${status}"></span>
-    </div>
-  `;
-  }).join('');
-}
-
 function refreshHealth() {
-  // Show a brief loading state on all indicators
-  document.querySelectorAll('.status-indicator').forEach(dot => {
-    dot.className = 'status-indicator warning'; // flash orange briefly while checking
-  });
-
-  // Run the actual health checks
-  checkSupabaseHealth().then(() => {
-    // After checks complete, also update the dashboard status list
-    renderStatusList();
-  });
+  renderHealthPage();
 }
 
-// ─── [4] Auto-Refresh for Health Page ──────────────────────────────
+// ─── Render: Kanban Page ───────────────────────────────────────────
 
-let healthAutoRefreshInterval = null;
-const HEALTH_AUTO_REFRESH_MS = 60000; // 60 seconds
+async function renderKanbanPage() {
+  const kanban = await loadKanban();
+  const status = cachedStatus;
 
-/**
- * Starts the 60-second auto-refresh cycle for the health page.
- * Called once on init; continues running in the background.
- */
-function startHealthAutoRefresh() {
-  // Clear any existing interval to avoid duplicates
-  if (healthAutoRefreshInterval) clearInterval(healthAutoRefreshInterval);
+  if (!kanban || !kanban.tasks) {
+    // Show offline kanban from localStorage
+    renderOfflineKanban();
+    return;
+  }
 
-  healthAutoRefreshInterval = setInterval(() => {
-    // Only auto-refresh if we're currently on the health page
-    if (currentPage === 'health') {
-      console.log('[Auto-Refresh] Running health checks...');
-      refreshHealth();
-    }
-  }, HEALTH_AUTO_REFRESH_MS);
-}
+  // Map API tasks to kanban columns
+  const columns = {
+    backlog: [],
+    'in-progress': [],
+    done: [],
+    automated: [],
+  };
 
-// ─── Render Kanban Board ───────────────────────────────────────────
-
-function renderKanban() {
-  const columns = { backlog: [], 'in-progress': [], done: [], automated: [] };
-
-  KANBAN_TASKS.forEach(task => {
-    if (columns[task.status]) {
-      columns[task.status].push(task);
-    }
+  // Add brain-driven tasks
+  kanban.tasks.forEach(task => {
+    if (task.status === 'todo') columns.backlog.push(task);
+    else if (task.status === 'in-progress') columns['in-progress'].push(task);
+    else if (task.status === 'done') columns.done.push(task);
   });
 
-  Object.entries(columns).forEach(([status, tasks]) => {
-    const col = document.getElementById(`col-${status}`);
+  // Add automated tasks (always-running brain cycles)
+  columns.automated.push(
+    { id: 'auto-1', title: 'Niche research weekly cron', desc: 'Automated trending analysis', tag: 'ai' },
+    { id: 'auto-2', title: 'Daily analytics reporting', desc: 'Pull Etsy stats, update dashboard', tag: 'ai' },
+    { id: 'auto-3', title: 'Brain cycle decision engine', desc: `Every 6h — ${status?.cycleCount || 0} cycles completed`, tag: 'ai' },
+  );
+
+  // Render columns
+  Object.entries(columns).forEach(([colId, tasks]) => {
+    const col = document.getElementById(`col-${colId}`);
     if (!col) return;
 
-    col.innerHTML = tasks.map(t => `
+    col.innerHTML = tasks.map(t => {
+      const tagClass = t.category === 'build' || t.category === 'listing' ? 'money'
+        : t.category === 'fix' ? 'infra'
+        : 'ai';
+
+      return `
+        <div class="kanban-card" draggable="true" data-id="${t.id}">
+          <div class="kanban-card-title">${t.title}</div>
+          <div class="kanban-card-desc">${t.desc || t.details || ''}</div>
+          <div class="kanban-card-meta">
+            <span class="kanban-tag ${t.tag || tagClass}">${t.tag || t.category || 'task'}</span>
+            ${t.priority ? `<span class="kanban-priority ${t.priority}">${t.priority}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  });
+
+  // Update counters
+  const el = (id) => document.getElementById(id);
+  if (el('kanbanBacklog')) el('kanbanBacklog').textContent = columns.backlog.length;
+  if (el('kanbanProgress')) el('kanbanProgress').textContent = columns['in-progress'].length;
+  if (el('kanbanDone')) el('kanbanDone').textContent = columns.done.length;
+  if (el('kanbanAuto')) el('kanbanAuto').textContent = columns.automated.length;
+}
+
+// localStorage-based offline kanban
+const KANBAN_STORAGE_KEY = 'adarsh_cc_kanban_tasks';
+const DEFAULT_KANBAN_TASKS = [
+  { id: 1, title: 'Build remaining Etsy templates', desc: 'Build debt-payoff, savings-goal, subscription-tracker', status: 'backlog', tag: 'money' },
+  { id: 2, title: 'Register Etsy Developer API', desc: 'Get API keys from etsy.com/developers', status: 'backlog', tag: 'money' },
+  { id: 3, title: 'Set up Polymarket account', desc: 'Create account, fund with USDC on Polygon', status: 'backlog', tag: 'money' },
+  { id: 4, title: 'Deploy Command Center to AWS', desc: 'S3 + CloudFront + DNS configuration', status: 'in-progress', tag: 'infra' },
+  { id: 5, title: 'Start brain service on EC2', desc: 'Authenticate Claude CLI, start systemd service', status: 'in-progress', tag: 'infra' },
+  { id: 6, title: 'Niche research weekly cron', desc: 'Automated trending analysis every Monday', status: 'automated', tag: 'ai' },
+  { id: 7, title: 'Brain cycle decision engine', desc: 'Claude-powered action selection every 6h', status: 'automated', tag: 'ai' },
+];
+
+function renderOfflineKanban() {
+  let tasks;
+  try {
+    const stored = localStorage.getItem(KANBAN_STORAGE_KEY);
+    tasks = stored ? JSON.parse(stored) : DEFAULT_KANBAN_TASKS;
+  } catch {
+    tasks = DEFAULT_KANBAN_TASKS;
+  }
+
+  const columns = { backlog: [], 'in-progress': [], done: [], automated: [] };
+  tasks.forEach(t => {
+    if (columns[t.status]) columns[t.status].push(t);
+  });
+
+  Object.entries(columns).forEach(([colId, colTasks]) => {
+    const col = document.getElementById(`col-${colId}`);
+    if (!col) return;
+
+    col.innerHTML = colTasks.map(t => `
       <div class="kanban-card" draggable="true" data-id="${t.id}">
         <div class="kanban-card-title">${t.title}</div>
         <div class="kanban-card-desc">${t.desc}</div>
@@ -584,86 +651,64 @@ function renderKanban() {
     `).join('');
   });
 
-  // Update counters
   const el = (id) => document.getElementById(id);
   if (el('kanbanBacklog')) el('kanbanBacklog').textContent = columns.backlog.length;
   if (el('kanbanProgress')) el('kanbanProgress').textContent = columns['in-progress'].length;
   if (el('kanbanDone')) el('kanbanDone').textContent = columns.done.length;
   if (el('kanbanAuto')) el('kanbanAuto').textContent = columns.automated.length;
-  if (el('aiTasksCount')) el('aiTasksCount').textContent = columns.automated.length;
-
-  // Persist to localStorage after each render
-  saveKanbanTasks();
-
-  // Enable drag and drop
-  setupDragDrop();
-}
-
-function setupDragDrop() {
-  const cards = document.querySelectorAll('.kanban-card');
-  const columns = document.querySelectorAll('.kanban-cards');
-
-  cards.forEach(card => {
-    card.addEventListener('dragstart', (e) => {
-      card.classList.add('dragging');
-      e.dataTransfer.setData('text/plain', card.dataset.id);
-    });
-    card.addEventListener('dragend', () => card.classList.remove('dragging'));
-  });
-
-  columns.forEach(col => {
-    col.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      col.style.background = 'rgba(139, 92, 246, 0.05)';
-    });
-    col.addEventListener('dragleave', () => {
-      col.style.background = '';
-    });
-    col.addEventListener('drop', (e) => {
-      e.preventDefault();
-      col.style.background = '';
-      const id = parseInt(e.dataTransfer.getData('text/plain'));
-      const newStatus = col.id.replace('col-', '');
-      const task = KANBAN_TASKS.find(t => t.id === id);
-      if (task) {
-        task.status = newStatus;
-        renderKanban(); // This will also call saveKanbanTasks()
-      }
-    });
-  });
 }
 
 function addTask(status) {
   const title = prompt('Task title:');
   if (!title) return;
-
   const desc = prompt('Description (optional):') || '';
   const tag = prompt('Tag (money/infra/ai):') || 'money';
 
-  // Generate a unique ID based on the max existing ID
-  const maxId = KANBAN_TASKS.reduce((max, t) => Math.max(max, t.id), 0);
+  let tasks;
+  try {
+    const stored = localStorage.getItem(KANBAN_STORAGE_KEY);
+    tasks = stored ? JSON.parse(stored) : DEFAULT_KANBAN_TASKS;
+  } catch {
+    tasks = DEFAULT_KANBAN_TASKS;
+  }
 
-  KANBAN_TASKS.push({
-    id: maxId + 1,
-    title,
-    desc,
-    status,
-    tag,
-  });
-
-  renderKanban(); // This will also call saveKanbanTasks()
+  const maxId = tasks.reduce((max, t) => Math.max(max, t.id), 0);
+  tasks.push({ id: maxId + 1, title, desc, status, tag });
+  localStorage.setItem(KANBAN_STORAGE_KEY, JSON.stringify(tasks));
+  renderOfflineKanban();
 }
 
-// ─── Render Projects Grid ──────────────────────────────────────────
+// ─── Render: Projects Page ─────────────────────────────────────────
 
-function renderProjectsGrid() {
+async function renderProjectsPage() {
   const grid = document.getElementById('projectsGrid');
   if (!grid) return;
 
+  const status = cachedStatus;
+
   const allProjects = [
-    ...SUPABASE_PROJECTS.map(p => ({ ...p, desc: 'Supabase project — PostgreSQL + Auth + Storage + Edge Functions' })),
-    { name: 'Adarsh Moneymaker', icon: '💰', type: 'Node.js', desc: 'Etsy digital product pipeline — Google Sheets templates' },
-    { name: 'Command Center', icon: '⚡', type: 'AWS', desc: 'This dashboard — S3 + CloudFront static site' },
+    ...SUPABASE_PROJECTS.map(p => ({
+      ...p,
+      desc: 'Supabase project — PostgreSQL + Auth + Storage + Edge Functions',
+    })),
+    {
+      name: 'Adarsh Moneymaker',
+      icon: '💰',
+      type: 'Node.js',
+      desc: `Etsy template pipeline — ${status?.catalog?.built || 0} built, ${status?.catalog?.planned || 0} planned`,
+    },
+    {
+      name: 'Moneymaker Brain',
+      icon: '🧠',
+      type: 'AWS EC2',
+      desc: `Autonomous AI brain — ${status?.cycleCount || 0} cycles, ${status?.state || 'unknown'} state`,
+    },
+    {
+      name: 'Command Center',
+      icon: '⚡',
+      type: 'S3+CDN',
+      desc: 'This dashboard — adarshpandey.co.in',
+    },
   ];
 
   grid.innerHTML = allProjects.map(p => `
@@ -680,23 +725,55 @@ function renderProjectsGrid() {
   `).join('');
 }
 
+// ─── Page Refresh Logic ────────────────────────────────────────────
+
+async function refreshCurrentPage() {
+  switch (currentPage) {
+    case 'dashboard':
+      await renderDashboard();
+      break;
+    case 'etsy':
+      await renderEtsyPage();
+      break;
+    case 'health':
+      await renderHealthPage();
+      break;
+    case 'kanban':
+      await renderKanbanPage();
+      break;
+    case 'projects':
+      await renderProjectsPage();
+      break;
+    // polymarket page is static for now
+  }
+}
+
+// Auto-refresh
+let autoRefreshInterval = null;
+
+function startAutoRefresh() {
+  if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+  autoRefreshInterval = setInterval(() => {
+    refreshCurrentPage();
+  }, REFRESH_INTERVAL_MS);
+}
+
 // ─── Initialize ─────────────────────────────────────────────────────
 
-function init() {
-  renderStatusList();
-  renderActivityFeed();
-  renderTemplateGrid();
-  renderKanban();
-  renderProjectsGrid();
-  renderRevenueStats();
+async function init() {
+  console.log('[CMD] Adarsh Command Center initializing...');
+  console.log(`[CMD] API endpoint: ${API_BASE}`);
 
-  // Run initial health checks (populates healthResults, then renders health grid)
-  checkSupabaseHealth().then(() => {
-    renderStatusList(); // Re-render dashboard status with real results
-  });
+  // Initial load — fetch brain status first to test connection
+  await loadBrainStatus();
 
-  // Start auto-refresh for health page (every 60 seconds)
-  startHealthAutoRefresh();
+  // Render current page
+  await refreshCurrentPage();
+
+  // Start auto-refresh
+  startAutoRefresh();
+
+  console.log(`[CMD] Initialized. Connected: ${isConnected}`);
 }
 
 init();

@@ -1,9 +1,10 @@
 /**
- * Adarsh Command Center — Service Worker
+ * Adarsh Command Center — Service Worker v2
  * Caches shell + assets for offline access, network-first for data.
+ * Updated for EC2 API integration.
  */
 
-const CACHE_NAME = 'adarsh-cc-v1';
+const CACHE_NAME = 'adarsh-cc-v2';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -41,6 +42,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
+
+  // Never cache API calls to EC2
+  if (event.request.url.includes('/api/')) return;
 
   // For navigation requests (HTML pages), use network-first
   if (event.request.mode === 'navigate') {

@@ -186,6 +186,28 @@ aws s3 cp "$PROJECT_ROOT/js/app.js" "s3://$BUCKET_NAME/js/app.js" \
     --cache-control "max-age=86400"
 log_success "js/app.js uploaded (application/javascript)"
 
+# Upload Service Worker
+log_info "Uploading sw.js..."
+aws s3 cp "$PROJECT_ROOT/sw.js" "s3://$BUCKET_NAME/sw.js" \
+    --content-type "application/javascript; charset=utf-8" \
+    --cache-control "max-age=0, no-cache"
+log_success "sw.js uploaded (no-cache for instant updates)"
+
+# Upload manifest.json
+log_info "Uploading manifest.json..."
+aws s3 cp "$PROJECT_ROOT/manifest.json" "s3://$BUCKET_NAME/manifest.json" \
+    --content-type "application/json; charset=utf-8" \
+    --cache-control "max-age=86400"
+log_success "manifest.json uploaded"
+
+# Upload icons
+if [ -d "$PROJECT_ROOT/icons" ]; then
+    log_info "Uploading icons/ directory..."
+    aws s3 sync "$PROJECT_ROOT/icons/" "s3://$BUCKET_NAME/icons/" \
+        --cache-control "max-age=604800"
+    log_success "icons/ directory synced."
+fi
+
 # Upload any other static assets if they exist (images, fonts, etc.)
 if [ -d "$PROJECT_ROOT/assets" ]; then
     log_info "Uploading assets/ directory..."

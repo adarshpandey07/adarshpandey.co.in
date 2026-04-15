@@ -931,6 +931,204 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 
+/* ─── Connection Indicator ─── */
+
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.connection-indicator.connected {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.connection-indicator.disconnected {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.conn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.connection-indicator.connected .conn-dot {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green-glow);
+  animation: pulse 2s infinite;
+}
+
+.connection-indicator.disconnected .conn-dot {
+  background: var(--red);
+}
+
+/* ─── Brain Banner ─── */
+
+.brain-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(6, 182, 212, 0.05));
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  margin-bottom: 24px;
+}
+
+.brain-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brain-banner-left > span:first-child {
+  font-size: 28px;
+}
+
+.brain-banner-title {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.brain-banner-title strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.brain-banner-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.brain-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.brain-badge {
+  font-weight: 700;
+  color: var(--text-bright);
+  background: rgba(139, 92, 246, 0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.brain-sep {
+  color: var(--border);
+  margin: 0 2px;
+}
+
+/* ─── EC2 Metrics ─── */
+
+.ec2-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.ec2-metric-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.ec2-metric-card:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ec2-metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.ec2-metric-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-bright);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.ec2-metric-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ─── Activity Duration ─── */
+
+.activity-duration {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+/* ─── Template Link ─── */
+
+.template-link {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+  margin-top: 8px;
+  padding: 2px 8px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.template-link:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+/* ─── Kanban Priority ─── */
+
+.kanban-priority {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.kanban-priority.high { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+.kanban-priority.medium { background: rgba(245, 158, 11, 0.15); color: var(--orange); }
+.kanban-priority.low { background: rgba(113, 113, 122, 0.15); color: var(--text-dim); }
+
+/* ─── Empty State ─── */
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
 /* ─── Responsive ─── */
 
 @media (max-width: 1024px) {
